@@ -1,0 +1,262 @@
+{% extends 'clinics/base.html' %}
+
+{% block title %}Firmar Disclaimer - Clinexa{% endblock %}
+
+{% block extra_css %}
+<style>
+    .signature-container {
+        border: 2px dashed var(--border-color);
+        border-radius: 0.5rem;
+        background-color: #fafafa;
+        margin: 1rem 0;
+    }
+
+    .signature-pad {
+        width: 100%;
+        height: 200px;
+        background-color: white;
+        border-radius: 0.375rem;
+        touch-action: none;
+    }
+
+    .signature-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .disclaimer-content {
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 1.5rem;
+        background-color: #f8fafc;
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+        line-height: 1.8;
+    }
+
+    .disclaimer-content h1, .disclaimer-content h2, .disclaimer-content h3 {
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .disclaimer-content p {
+        margin-bottom: 1rem;
+    }
+
+    .disclaimer-content ul, .disclaimer-content ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .patient-info-banner {
+        background: linear-gradient(135deg, var(--primary-color), #4f46e5);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .checkbox-container {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 1rem;
+        background-color: #f0fdf4;
+        border: 1px solid #86efac;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .checkbox-container input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-top: 0.125rem;
+        cursor: pointer;
+    }
+
+    .checkbox-container label {
+        cursor: pointer;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    #submitBtn {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    #submitBtn.enabled {
+        opacity: 1;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1.5rem;">
+    <a href="{% url 'clinics:patient_detail' patient.id %}" style="color: var(--text-muted); text-decoration: none;">
+        &larr; Volver al Paciente
+    </a>
+</div>
+
+<div class="patient-info-banner">
+    <div>
+        <div style="font-size: 0.875rem; opacity: 0.9;">Paciente</div>
+        <div style="font-size: 1.25rem; font-weight: 600;">{{ patient.get_full_name }}</div>
+    </div>
+    <div style="text-align: right;">
+        <div style="font-size: 0.875rem; opacity: 0.9;">Identificacion</div>
+        <div style="font-weight: 500;">{{ patient.id_number }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">{{ disclaimer.title }}</h2>
+            <span style="font-size: 0.875rem; color: var(--text-muted);">
+                {{ disclaimer.get_category_display }} - Version {{ disclaimer.version }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Disclaimer Content -->
+    <div class="disclaimer-content">
+        {{ disclaimer.content|linebreaks }}
+    </div>
+
+    <!-- Signature Form -->
+    <form method="post" id="signatureForm">
+        {% csrf_token %}
+
+        <!-- Confirmation Checkbox -->
+        <div class="checkbox-container">
+            <input type="checkbox" id="confirmRead" name="confirm_read">
+            <label for="confirmRead">
+                Confirmo que he leido y entendido completamente el contenido de este documento.
+                Acepto los terminos y condiciones descritos anteriormente.
+            </label>
+        </div>
+
+        <!-- Signature Pad -->
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; font-weight: 500; margin-bottom: 0.5rem;">
+                Firma del Paciente <span style="color: var(--danger-color);">*</span>
+            </label>
+            <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                Por favor, firme en el recuadro de abajo usando el mouse o su dedo (en dispositivos tactiles).
+            </p>
+            <div class="signature-container">
+                <canvas id="signaturePad" class="signature-pad"></canvas>
+            </div>
+            <div class="signature-actions">
+                <button type="button" id="clearBtn" class="btn btn-secondary btn-sm">
+                    Limpiar Firma
+                </button>
+            </div>
+        </div>
+
+        <input type="hidden" name="signature_data" id="signatureData">
+
+        <!-- Submit Buttons -->
+        <div style="display: flex; gap: 1rem; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+            <button type="submit" id="submitBtn" class="btn btn-primary" style="flex: 1;">
+                Firmar Documento
+            </button>
+            <a href="{% url 'clinics:patient_detail' patient.id %}" class="btn btn-secondary">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Legal Notice -->
+<div style="margin-top: 1rem; padding: 1rem; background-color: #f8fafc; border-radius: 0.5rem; font-size: 0.75rem; color: var(--text-muted);">
+    <strong>Aviso Legal:</strong> Al firmar este documento, usted reconoce que ha leido,
+    entendido y aceptado todos los terminos y condiciones establecidos. Esta firma digital
+    tiene la misma validez legal que una firma manuscrita. Se registrara la fecha, hora,
+    direccion IP y agente de usuario como parte del registro de auditoria.
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize signature pad
+    const canvas = document.getElementById('signaturePad');
+    const signaturePad = new SignaturePad(canvas, {
+        backgroundColor: 'rgb(255, 255, 255)',
+        penColor: 'rgb(0, 0, 0)'
+    });
+
+    // Resize canvas to fit container
+    function resizeCanvas() {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        const container = canvas.parentElement;
+        canvas.width = container.offsetWidth * ratio;
+        canvas.height = 200 * ratio;
+        canvas.getContext('2d').scale(ratio, ratio);
+        canvas.style.width = container.offsetWidth + 'px';
+        canvas.style.height = '200px';
+        signaturePad.clear();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Clear button
+    document.getElementById('clearBtn').addEventListener('click', function() {
+        signaturePad.clear();
+        updateSubmitButton();
+    });
+
+    // Checkbox and signature validation
+    const confirmCheckbox = document.getElementById('confirmRead');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function updateSubmitButton() {
+        const isChecked = confirmCheckbox.checked;
+        const isSigned = !signaturePad.isEmpty();
+
+        if (isChecked && isSigned) {
+            submitBtn.classList.add('enabled');
+            submitBtn.disabled = false;
+        } else {
+            submitBtn.classList.remove('enabled');
+            submitBtn.disabled = true;
+        }
+    }
+
+    confirmCheckbox.addEventListener('change', updateSubmitButton);
+    canvas.addEventListener('pointerup', updateSubmitButton);
+    canvas.addEventListener('touchend', updateSubmitButton);
+
+    // Form submission
+    document.getElementById('signatureForm').addEventListener('submit', function(e) {
+        if (signaturePad.isEmpty()) {
+            e.preventDefault();
+            alert('Por favor proporcione su firma antes de continuar.');
+            return false;
+        }
+
+        if (!confirmCheckbox.checked) {
+            e.preventDefault();
+            alert('Por favor confirme que ha leido el documento.');
+            return false;
+        }
+
+        // Save signature as base64 PNG
+        document.getElementById('signatureData').value = signaturePad.toDataURL('image/png');
+    });
+
+    // Initial state
+    updateSubmitButton();
+});
+</script>
+{% endblock %}

@@ -8,13 +8,14 @@ filtering and enhanced usability features.
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
-from django.utils.html import format_html
+from django.utils.html import mark_safe
 from .models import (
     Clinic,
     User,
     Patient,
     Treatment,
     PatientTreatment,
+    Appointment,
     Disclaimer,
     DisclaimerAcceptance
 )
@@ -116,12 +117,8 @@ class ClinicAdmin(admin.ModelAdmin):
     def subscription_status(self, obj):
         """Display subscription status with color coding."""
         if obj.is_subscription_active():
-            return format_html(
-                '<span style="color: green;">✓ Active</span>'
-            )
-        return format_html(
-            '<span style="color: red;">✗ Expired</span>'
-        )
+            return mark_safe('<span style="color: green;">✓ Active</span>')
+        return mark_safe('<span style="color: red;">✗ Expired</span>')
     subscription_status.short_description = _('Status')
 
 
@@ -156,6 +153,7 @@ class UserAdmin(BaseUserAdmin):
         'clinic__name'
     )
     ordering = ('clinic', 'last_name', 'first_name')
+    readonly_fields = ('created_at', 'updated_at', 'last_login', 'date_joined')
 
     fieldsets = (
         (None, {
@@ -200,6 +198,16 @@ class UserAdmin(BaseUserAdmin):
                 'updated_at'
             ),
             'classes': ('collapse',)
+        }),
+    )
+
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'password1', 'password2'),
+        }),
+        (_('Clinic Association'), {
+            'fields': ('clinic', 'role'),
         }),
     )
 
@@ -372,6 +380,20 @@ class TreatmentAdmin(admin.ModelAdmin):
 # PATIENT TREATMENT ADMIN
 # ============================================================================
 
+class AppointmentInline(admin.TabularInline):
+    """Inline admin for appointments within PatientTreatment."""
+    model = Appointment
+    extra = 0
+    readonly_fields = ('id', 'created_at')
+    fields = (
+        'scheduled_date',
+        'scheduled_time',
+        'status',
+        'attended_by',
+        'notes'
+    )
+
+
 @admin.register(PatientTreatment)
 class PatientTreatmentAdmin(admin.ModelAdmin):
     """Admin interface for PatientTreatment model."""
@@ -383,10 +405,13 @@ class PatientTreatmentAdmin(admin.ModelAdmin):
         'status',
         'start_date',
         'end_date',
+        'total_sessions',
+        'frequency_type',
         'total_price'
     )
     list_filter = (
         'status',
+        'frequency_type',
         'start_date',
         'treatment__clinic',
     )
@@ -400,9 +425,12 @@ class PatientTreatmentAdmin(admin.ModelAdmin):
         'id',
         'created_at',
         'updated_at',
-        'total_price'
+        'total_price',
+        'completed_sessions',
+        'pending_sessions'
     )
     date_hierarchy = 'start_date'
+    inlines = [AppointmentInline]
 
     fieldsets = (
         (_('Basic Information'), {
@@ -420,11 +448,24 @@ class PatientTreatmentAdmin(admin.ModelAdmin):
                 'end_date',
             )
         }),
-        (_('Details'), {
+        (_('Sessions & Frequency'), {
             'fields': (
-                'quantity',
+                'total_sessions',
+                'completed_sessions',
+                'pending_sessions',
+                'frequency_type',
+                'frequency_interval',
+                'preferred_time',
+            )
+        }),
+        (_('Pricing'), {
+            'fields': (
                 'price_override',
                 'total_price',
+            )
+        }),
+        (_('Notes'), {
+            'fields': (
                 'notes',
             )
         }),
@@ -437,10 +478,154 @@ class PatientTreatmentAdmin(admin.ModelAdmin):
         }),
     )
 
+    actions = ['generate_appointments_action']
+
     def total_price(self, obj):
         """Display total price formatted."""
         return f"${obj.get_total_price():,.2f}"
     total_price.short_description = _('Total Price')
+
+    def completed_sessions(self, obj):
+        """Display completed sessions count."""
+        return obj.get_completed_sessions()
+    completed_sessions.short_description = _('Completed')
+
+    def pending_sessions(self, obj):
+        """Display pending sessions count."""
+        return obj.get_pending_sessions()
+    pending_sessions.short_description = _('Pending')
+
+    @admin.action(description=_('Generate appointments for selected treatments'))
+    def generate_appointments_action(self, request, queryset):
+        """Generate appointments for selected patient treatments."""
+        total_created = 0
+        for patient_treatment in queryset:
+            appointments = patient_treatment.generate_appointments(save=True)
+            total_created += len(appointments)
+        self.message_user(
+            request,
+            f'{total_created} appointments created successfully.'
+        )
+
+
+# ============================================================================
+# APPOINTMENT ADMIN
+# ============================================================================
+
+@admin.register(Appointment)
+class AppointmentAdmin(admin.ModelAdmin):
+    """Admin interface for Appointment model."""
+
+    list_display = (
+        'patient_name',
+        'treatment_name',
+        'scheduled_date',
+        'scheduled_time',
+        'status',
+        'attended_by',
+        'clinic_name'
+    )
+    list_filter = (
+        'status',
+        'scheduled_date',
+        'patient_treatment__patient__clinic',
+    )
+    search_fields = (
+        'patient_treatment__patient__first_name',
+        'patient_treatment__patient__last_name',
+        'patient_treatment__treatment__name',
+        'attended_by__username'
+    )
+    readonly_fields = (
+        'id',
+        'created_at',
+        'updated_at',
+        'patient_name',
+        'treatment_name',
+        'clinic_name'
+    )
+    date_hierarchy = 'scheduled_date'
+    ordering = ('scheduled_date', 'scheduled_time')
+
+    fieldsets = (
+        (_('Appointment Information'), {
+            'fields': (
+                'id',
+                'patient_treatment',
+                'patient_name',
+                'treatment_name',
+                'clinic_name',
+            )
+        }),
+        (_('Schedule'), {
+            'fields': (
+                'scheduled_date',
+                'scheduled_time',
+                'duration_minutes',
+            )
+        }),
+        (_('Status'), {
+            'fields': (
+                'status',
+                'attended_by',
+            )
+        }),
+        (_('Actual Timing'), {
+            'fields': (
+                'actual_start_time',
+                'actual_end_time',
+            ),
+            'classes': ('collapse',)
+        }),
+        (_('Notes'), {
+            'fields': (
+                'notes',
+                'cancellation_reason',
+            )
+        }),
+        (_('Metadata'), {
+            'fields': (
+                'created_at',
+                'updated_at',
+            ),
+            'classes': ('collapse',)
+        }),
+    )
+
+    actions = ['mark_as_completed', 'mark_as_cancelled', 'mark_as_no_show']
+
+    def patient_name(self, obj):
+        """Display patient's full name."""
+        return obj.patient.get_full_name()
+    patient_name.short_description = _('Patient')
+
+    def treatment_name(self, obj):
+        """Display treatment name."""
+        return obj.treatment.name
+    treatment_name.short_description = _('Treatment')
+
+    def clinic_name(self, obj):
+        """Display clinic name."""
+        return obj.clinic.name
+    clinic_name.short_description = _('Clinic')
+
+    @admin.action(description=_('Mark selected appointments as completed'))
+    def mark_as_completed(self, request, queryset):
+        """Mark selected appointments as completed."""
+        count = queryset.update(status=Appointment.Status.COMPLETED)
+        self.message_user(request, f'{count} appointments marked as completed.')
+
+    @admin.action(description=_('Mark selected appointments as cancelled'))
+    def mark_as_cancelled(self, request, queryset):
+        """Mark selected appointments as cancelled."""
+        count = queryset.update(status=Appointment.Status.CANCELLED)
+        self.message_user(request, f'{count} appointments marked as cancelled.')
+
+    @admin.action(description=_('Mark selected appointments as no show'))
+    def mark_as_no_show(self, request, queryset):
+        """Mark selected appointments as no show."""
+        count = queryset.update(status=Appointment.Status.NO_SHOW)
+        self.message_user(request, f'{count} appointments marked as no show.')
 
 
 # ============================================================================
@@ -601,12 +786,8 @@ class DisclaimerAcceptanceAdmin(admin.ModelAdmin):
     def validity_status(self, obj):
         """Display validity status with color coding."""
         if obj.is_valid:
-            return format_html(
-                '<span style="color: green;">✓ Valid</span>'
-            )
-        return format_html(
-            '<span style="color: red;">✗ Invalidated</span>'
-        )
+            return mark_safe('<span style="color: green;">✓ Valid</span>')
+        return mark_safe('<span style="color: red;">✗ Invalidated</span>')
     validity_status.short_description = _('Validity')
 
 

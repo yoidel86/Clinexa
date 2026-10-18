@@ -1,0 +1,215 @@
+{% extends 'clinics/base.html' %}
+
+{% block title %}Documento Firmado - Clinexa{% endblock %}
+
+{% block extra_css %}
+<style>
+    .document-header {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .document-header .status-badge {
+        background-color: rgba(255,255,255,0.2);
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        font-weight: 500;
+    }
+
+    .disclaimer-content {
+        padding: 1.5rem;
+        background-color: #f8fafc;
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+        line-height: 1.8;
+    }
+
+    .signature-display {
+        background-color: white;
+        border: 2px solid var(--border-color);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .signature-display img {
+        max-width: 100%;
+        max-height: 200px;
+    }
+
+    .audit-trail {
+        background-color: #f8fafc;
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        font-size: 0.875rem;
+    }
+
+    .audit-trail dt {
+        font-weight: 500;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+
+    .audit-trail dd {
+        margin-bottom: 0.75rem;
+        margin-left: 0;
+    }
+
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        .card {
+            box-shadow: none;
+            border: 1px solid #ccc;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="no-print" style="margin-bottom: 1.5rem;">
+    <a href="{% url 'clinics:patient_detail' acceptance.patient.id %}" style="color: var(--text-muted); text-decoration: none;">
+        &larr; Volver al Paciente
+    </a>
+</div>
+
+<div class="document-header">
+    <div>
+        <div style="font-size: 0.875rem; opacity: 0.9;">Documento Firmado</div>
+        <div style="font-size: 1.5rem; font-weight: 700;">{{ acceptance.disclaimer.title }}</div>
+        <div style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.25rem;">
+            Version {{ acceptance.disclaimer.version }} | {{ acceptance.disclaimer.get_category_display }}
+        </div>
+    </div>
+    <div class="status-badge">
+        {% if acceptance.is_valid %}
+            Valido
+        {% else %}
+            Invalidado
+        {% endif %}
+    </div>
+</div>
+
+<!-- Patient Information -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Informacion del Paciente</h2>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Nombre Completo</div>
+            <div style="font-weight: 500; margin-top: 0.25rem;">{{ acceptance.patient.get_full_name }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Identificacion</div>
+            <div style="font-weight: 500; margin-top: 0.25rem;">{{ acceptance.patient.id_number }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Fecha de Nacimiento</div>
+            <div style="font-weight: 500; margin-top: 0.25rem;">{{ acceptance.patient.date_of_birth|date:"d/m/Y" }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Telefono</div>
+            <div style="font-weight: 500; margin-top: 0.25rem;">{{ acceptance.patient.phone }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Disclaimer Content -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Contenido del Documento</h2>
+    </div>
+    <div class="disclaimer-content">
+        {{ acceptance.disclaimer.content|linebreaks }}
+    </div>
+</div>
+
+<!-- Signature -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Firma Digital</h2>
+    </div>
+
+    {% if acceptance.signature_data %}
+    <div class="signature-display">
+        <img src="{{ acceptance.signature_data }}" alt="Firma del paciente">
+    </div>
+    <p style="text-align: center; margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-muted);">
+        {{ acceptance.patient.get_full_name }}
+    </p>
+    {% else %}
+    <div class="signature-display">
+        <p style="color: var(--text-muted);">Aceptacion sin firma visual (checkbox)</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Audit Trail -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Registro de Auditoria</h2>
+    </div>
+    <div class="audit-trail">
+        <dl style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 0;">
+            <div>
+                <dt>Fecha y Hora de Firma</dt>
+                <dd>{{ acceptance.accepted_at|date:"d/m/Y H:i:s" }}</dd>
+            </div>
+            <div>
+                <dt>Direccion IP</dt>
+                <dd>{{ acceptance.ip_address|default:"No registrada" }}</dd>
+            </div>
+            <div>
+                <dt>Registrado por</dt>
+                <dd>{{ acceptance.accepted_by_user.get_full_name|default:acceptance.accepted_by_user.username|default:"Sistema" }}</dd>
+            </div>
+            <div>
+                <dt>ID del Documento</dt>
+                <dd style="font-family: monospace; font-size: 0.75rem;">{{ acceptance.id }}</dd>
+            </div>
+        </dl>
+        {% if acceptance.user_agent %}
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <dt>Agente de Usuario</dt>
+            <dd style="font-family: monospace; font-size: 0.75rem; word-break: break-all;">
+                {{ acceptance.user_agent }}
+            </dd>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if not acceptance.is_valid %}
+<!-- Invalidation Notice -->
+<div class="card" style="border-left: 4px solid var(--danger-color);">
+    <div class="card-header">
+        <h2 class="card-title" style="color: var(--danger-color);">Documento Invalidado</h2>
+    </div>
+    <div>
+        <p><strong>Fecha de Invalidacion:</strong> {{ acceptance.invalidated_at|date:"d/m/Y H:i:s" }}</p>
+        <p><strong>Razon:</strong> {{ acceptance.invalidation_reason|default:"No especificada" }}</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Actions -->
+<div class="no-print" style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+    <button onclick="window.print()" class="btn btn-primary">
+        Imprimir Documento
+    </button>
+    <a href="{% url 'clinics:patient_detail' acceptance.patient.id %}" class="btn btn-secondary">
+        Volver al Paciente
+    </a>
+</div>
+{% endblock %}

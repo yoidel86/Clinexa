@@ -1,0 +1,171 @@
+{% extends 'clinics/base.html' %}
+
+{% block title %}{{ patient.get_full_name }} - Clinexa{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1.5rem;">
+    <a href="{% url 'clinics:patient_list' %}" style="color: var(--text-muted); text-decoration: none;">
+        &larr; Volver a Pacientes
+    </a>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+    <div>
+        <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem;">
+            {{ patient.get_full_name }}
+        </h1>
+        <p style="color: var(--text-muted);">
+            {{ patient.id_number }} | {{ patient.get_age }} anios | {{ patient.get_gender_display }}
+        </p>
+    </div>
+    {% if pending_disclaimers > 0 %}
+    <div style="background-color: #fef3c7; color: #92400e; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 500;">
+        {{ pending_disclaimers }} disclaimer{{ pending_disclaimers|pluralize }} pendiente{{ pending_disclaimers|pluralize }}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Patient Info Card -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Informacion del Paciente</h2>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Telefono</div>
+            <div style="font-weight: 500; margin-top: 0.25rem;">{{ patient.phone }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Email</div>
+            <div style="font-weight: 500; margin-top: 0.25rem;">{{ patient.email|default:"No especificado" }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Tipo de Sangre</div>
+            <div style="font-weight: 500; margin-top: 0.25rem;">{{ patient.get_blood_type_display }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Fecha de Nacimiento</div>
+            <div style="font-weight: 500; margin-top: 0.25rem;">{{ patient.date_of_birth|date:"d/m/Y" }}</div>
+        </div>
+    </div>
+    {% if patient.allergies %}
+    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Alergias</div>
+        <div style="font-weight: 500; margin-top: 0.25rem; color: var(--danger-color);">{{ patient.allergies }}</div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Disclaimers Card -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Consentimientos y Disclaimers</h2>
+    </div>
+
+    {% if disclaimer_status %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Documento</th>
+                <th>Categoria</th>
+                <th>Version</th>
+                <th>Estado</th>
+                <th>Fecha de Firma</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in disclaimer_status %}
+            <tr>
+                <td>
+                    <strong>{{ item.disclaimer.title }}</strong>
+                </td>
+                <td>{{ item.disclaimer.get_category_display }}</td>
+                <td>v{{ item.disclaimer.version }}</td>
+                <td>
+                    {% if item.accepted %}
+                        <span class="badge badge-completed">Firmado</span>
+                    {% else %}
+                        <span class="badge badge-scheduled">Pendiente</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.acceptance %}
+                        {{ item.acceptance.accepted_at|date:"d/m/Y H:i" }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.accepted %}
+                        <a href="{% url 'clinics:disclaimer_acceptance' item.acceptance.id %}" class="btn btn-sm btn-secondary">
+                            Ver Firma
+                        </a>
+                    {% else %}
+                        <a href="{% url 'clinics:disclaimer_sign' patient.id item.disclaimer.id %}" class="btn btn-sm btn-primary">
+                            Firmar
+                        </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No hay disclaimers configurados para esta clinica.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Treatments Card -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Tratamientos Recientes</h2>
+    </div>
+
+    {% if treatments %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Tratamiento</th>
+                <th>Estado</th>
+                <th>Fecha Inicio</th>
+                <th>Sesiones</th>
+                <th>Asignado por</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pt in treatments %}
+            <tr>
+                <td>
+                    <strong>{{ pt.treatment.name }}</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ pt.treatment.category }}</div>
+                </td>
+                <td>
+                    {% if pt.status == 'SCHEDULED' %}
+                        <span class="badge badge-scheduled">Programado</span>
+                    {% elif pt.status == 'IN_PROGRESS' %}
+                        <span class="badge badge-in-progress">En Progreso</span>
+                    {% elif pt.status == 'COMPLETED' %}
+                        <span class="badge badge-completed">Completado</span>
+                    {% elif pt.status == 'CANCELLED' %}
+                        <span class="badge badge-cancelled">Cancelado</span>
+                    {% else %}
+                        <span class="badge">{{ pt.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ pt.start_date|date:"d/m/Y" }}</td>
+                <td>{{ pt.get_completed_sessions }}/{{ pt.total_sessions }}</td>
+                <td>{{ pt.assigned_by.get_full_name|default:pt.assigned_by.username }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No hay tratamientos registrados para este paciente.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(django-admin startproject:*)",
-      "Bash(python manage.py startapp:*)"
+      "Bash(python manage.py startapp:*)",
+      "Bash(python manage.py makemigrations:*)",
+      "Bash(python3 manage.py makemigrations:*)",
+      "Bash(pipenv run python:*)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(pkill:*)",
+      "Bash(pipenv install:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)"
     ]
   }
 }

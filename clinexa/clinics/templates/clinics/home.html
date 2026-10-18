@@ -1,0 +1,161 @@
+{% extends 'clinics/base.html' %}
+
+{% block title %}Inicio - Clinexa{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 0.5rem; font-size: 1.75rem; font-weight: 700;">
+    Bienvenido{% if user.first_name %}, {{ user.first_name }}{% endif %}
+</h1>
+<p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+    {% if user.clinic %}
+        {{ user.clinic.name }} -
+    {% endif %}
+    {{ today|date:"l, d F Y" }}
+</p>
+
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card primary">
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">Citas Hoy</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-value">{{ stats.pending }}</div>
+        <div class="stat-label">Pendientes</div>
+    </div>
+    <div class="stat-card info">
+        <div class="stat-value">{{ stats.in_progress }}</div>
+        <div class="stat-label">En Progreso</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-value">{{ stats.completed }}</div>
+        <div class="stat-label">Completadas</div>
+    </div>
+</div>
+
+<!-- Today's Appointments -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Citas de Hoy</h2>
+        <span style="color: var(--text-muted); font-size: 0.875rem;">
+            {{ today|date:"d/m/Y" }}
+        </span>
+    </div>
+
+    {% if appointments %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Hora</th>
+                <th>Paciente</th>
+                <th>Tratamiento</th>
+                <th>Duracion</th>
+                <th>Estado</th>
+                <th>Atendido por</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for appointment in appointments %}
+            <tr>
+                <td>
+                    <strong>{{ appointment.scheduled_time|time:"H:i" }}</strong>
+                </td>
+                <td>
+                    <div style="font-weight: 500;">
+                        {{ appointment.patient.get_full_name }}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                        {{ appointment.patient.id_number }}
+                    </div>
+                </td>
+                <td>
+                    <div>{{ appointment.treatment.name }}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                        {{ appointment.treatment.category }}
+                    </div>
+                </td>
+                <td>
+                    {{ appointment.get_duration }} min
+                </td>
+                <td>
+                    {% if appointment.status == 'SCHEDULED' %}
+                        <span class="badge badge-scheduled">Programada</span>
+                    {% elif appointment.status == 'CONFIRMED' %}
+                        <span class="badge badge-confirmed">Confirmada</span>
+                    {% elif appointment.status == 'IN_PROGRESS' %}
+                        <span class="badge badge-in-progress">En Progreso</span>
+                    {% elif appointment.status == 'COMPLETED' %}
+                        <span class="badge badge-completed">Completada</span>
+                    {% elif appointment.status == 'CANCELLED' %}
+                        <span class="badge badge-cancelled">Cancelada</span>
+                    {% elif appointment.status == 'NO_SHOW' %}
+                        <span class="badge badge-no-show">No Asistio</span>
+                    {% else %}
+                        <span class="badge">{{ appointment.status }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if appointment.attended_by %}
+                        {{ appointment.attended_by.get_full_name|default:appointment.attended_by.username }}
+                    {% else %}
+                        <span style="color: var(--text-muted);">Sin asignar</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">&#128197;</div>
+        <h3 style="margin-bottom: 0.5rem; color: var(--text-color);">No hay citas programadas</h3>
+        <p>No hay citas de tratamientos programadas para el dia de hoy.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quick Info -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Informacion de Usuario</h2>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+                Nombre
+            </div>
+            <div style="font-weight: 500; margin-top: 0.25rem;">
+                {{ user.get_full_name|default:user.username }}
+            </div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+                Rol
+            </div>
+            <div style="font-weight: 500; margin-top: 0.25rem;">
+                {{ user.get_role_display }}
+            </div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+                Clinica
+            </div>
+            <div style="font-weight: 500; margin-top: 0.25rem;">
+                {% if user.clinic %}
+                    {{ user.clinic.name }}
+                {% else %}
+                    Sin clinica asignada
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+                Email
+            </div>
+            <div style="font-weight: 500; margin-top: 0.25rem;">
+                {{ user.email|default:"No especificado" }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

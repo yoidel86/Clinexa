@@ -1,0 +1,52 @@
+{% extends 'clinics/base.html' %}
+
+{% block title %}Pacientes - Clinexa{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h1 style="font-size: 1.75rem; font-weight: 700;">Pacientes</h1>
+</div>
+
+<div class="card">
+    {% if patients %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Identificacion</th>
+                <th>Telefono</th>
+                <th>Email</th>
+                <th>Edad</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for patient in patients %}
+            <tr>
+                <td>
+                    <a href="{% url 'clinics:patient_detail' patient.id %}" style="color: var(--primary-color); text-decoration: none; font-weight: 500;">
+                        {{ patient.get_full_name }}
+                    </a>
+                </td>
+                <td>{{ patient.id_number }}</td>
+                <td>{{ patient.phone }}</td>
+                <td>{{ patient.email|default:"-" }}</td>
+                <td>{{ patient.get_age }} anios</td>
+                <td>
+                    <a href="{% url 'clinics:patient_detail' patient.id %}" class="btn btn-sm btn-primary">
+                        Ver Detalle
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">&#128100;</div>
+        <h3 style="margin-bottom: 0.5rem; color: var(--text-color);">No hay pacientes</h3>
+        <p>No se encontraron pacientes registrados.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
